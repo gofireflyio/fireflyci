@@ -1,30 +1,29 @@
-# FireFlyCI for Github Actions
+# FireflyCI for GitHub Actions
 
-FireFlyCI is a command line interface for the FireflyCI Firefly actions
+FireflyCI is a command line interface for the FireflyCI Firefly actions
 
-### FireFlyCI Post-Plan
+### FireflyCI Post-Plan
 ```yaml
-- name: FireFlyCI Post-Plan
+- name: FireflyCI Post-Plan
   uses: gofireflyio/fireflyci@v1.0
   with:
     command: post-plan
-    plan-file: plan.json
+    plan-output-file: plan.json
+    plan-log-file: plan-log.jsonl
     workspace: gofirefly/infrastructure-prod
-    args: --timeout 180
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
     FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
 ```
 
-### FireFlyCI Post-Apply
+### FireflyCI Post-Apply
 ```yaml
-- name: FireFlyCI Post-Plan
+- name: FireflyCI Post-Apply
   uses: gofireflyio/fireflyci@v1.0
   with:
     command: post-apply
-    plan-file: plan.json
+    apply-log-file: apply-log.jsonl
     workspace: gofirefly/infrastructure-prod
-    args: --timeout 180
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
     FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
