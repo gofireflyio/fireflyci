@@ -29,7 +29,7 @@ runs:
   args:
   - '-c'
   - >-  
-    ./fireflyci ${{ inputs.command }}
+    /app/fireflyci ${{ inputs.command }}
     ${{ inputs.plan-file != '' && format('-f {0}', inputs.plan-file) || '' }}
     ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
     ${{ inputs.args }}
