@@ -29,7 +29,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ```yaml
 - name: Terraform Apply
   id: apply
-  run: terraform apply -auto-approve -json > apply_log.json
+  run: terraform apply -auto-approve -json > apply_log.jsonl
   continue-on-error: true
 ```
 
@@ -39,7 +39,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
   uses: gofireflyio/fireflyci@v1.0
   with:
     command: post-apply
-    apply-log-file: apply.json
+    apply-log-file: apply.jsonl
     workspace: <WORKSPACE_DIR>
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
