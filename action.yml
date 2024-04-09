@@ -1,6 +1,6 @@
-name: FireFlyCI
+name: FireflyCI
 
-description: "Github Action for the command-line interface of the FireflyCI Firefly actions"
+description: "GitHub action for the command-line interface of the FireflyCI Firefly actions"
 
 inputs:
   version:
@@ -8,15 +8,23 @@ inputs:
     required: false
     default: "latest"
   command:
-    description: "FireflyCI command to execute [post-apply, post-plan, redact]"
+    description: "FireflyCI command to execute [post-apply, post-plan]"
     required: true
-  plan-file:
-    description: "Path to the plan file to scan"
+  plan-output-file:
+    description: "Path to the plan output file"
+    required: false
+    default: ''
+  plan-log-file:
+    description: "Path to the plan log file"
+    required: false
+    default: ''
+  apply-log-file:
+    description: "Path to the apply log file"
     required: false
     default: ''
   workspace:
     description: "Workspace identifier"
-    required: false
+    required: true
     default: ''
   args:
     description: "Additional arguments for the fireflyci executed command"
@@ -40,7 +48,9 @@ runs:
     - name: FireFlyCI ${{ inputs.command }}
       run: >-
         fireflyci ${{ inputs.command }}
-        ${{ inputs.plan-file != '' && format('-f {0}', inputs.plan-file) || '' }}
+        ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
+        ${{ inputs.plan-log-file != '' && format('-l {0}', inputs.plan-log-file) || '' }}
+        ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }}
         ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
         ${{ inputs.args }}
       shell: bash
