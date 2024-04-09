@@ -25,8 +25,11 @@ inputs:
 runs:
   using: 'docker'
   image: 'docker://public.ecr.aws/firefly/fireflyci:v0.2.5'
+  entrypoint: '/bin/sh'
   args:
-    - './fireflyci ${{ inputs.command }}'
-    - ${{ inputs.plan-file != '' && format('-f {0}', inputs.plan-file) || '' }}
-    - ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
-    - ${{ inputs.args }}
+  - '-c'
+  - >-  
+    ./fireflyci ${{ inputs.command }}
+    ${{ inputs.plan-file != '' && format('-f {0}', inputs.plan-file) || '' }}
+    ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
+    ${{ inputs.args }}
