@@ -7,7 +7,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
     - name: Terraform Plan
       id: plan
       run: |
-        terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -no-color -json plan.tmp > ${GITHUB_WORKSPACE}/plan_output.json
+        terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -json plan.tmp > ${GITHUB_WORKSPACE}/plan_output.json
       continue-on-error: true
 ```
 
@@ -29,7 +29,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ```yaml
     - name: Terraform Apply
       id: apply
-      run: terraform apply -no-color -auto-approve -json > ${GITHUB_WORKSPACE}/apply_log.json
+      run: terraform apply -auto-approve -json > ${GITHUB_WORKSPACE}/apply_log.json
       continue-on-error: true
 ```
 
