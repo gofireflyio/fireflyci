@@ -1,0 +1,46 @@
+name: FireFlyCI
+
+description: "Github Action for the command-line interface of the FireflyCI Firefly actions"
+
+inputs:
+  version:
+    description: FireflyCI Version
+    required: false
+    default: "latest"
+  command:
+    description: "FireflyCI command to execute [post-apply, post-plan, redact]"
+    required: true
+  plan-file:
+    description: "Path to the plan file to scan"
+    required: false
+    default: ''
+  workspace:
+    description: "Workspace identifier"
+    required: false
+    default: ''
+  args:
+    description: "Additional arguments for the fireflyci executed command"
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set GitHub Path
+      run: echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+      shell: bash
+      env:
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
+
+    - name: Preflight Checks
+      run: preflight-checks.sh
+      shell: bash
+      env:
+        FIREFLYCI_VERSION: ${{ inputs.version }}
+
+    - name: FireFlyCI ${{ inputs.command }}
+      run: >-
+        fireflyci ${{ inputs.command }}
+        ${{ inputs.plan-file != '' && format('-f {0}', inputs.plan-file) || '' }}
+        ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
+        ${{ inputs.args }}
+      shell: bash
