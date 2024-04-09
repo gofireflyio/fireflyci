@@ -4,11 +4,11 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 
 ### The plan step must output into a file
 ```yaml
-    - name: Terraform Plan
-      id: plan
-      run: |
-        terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -json plan.tmp > ${GITHUB_WORKSPACE}/plan_output.json
-      continue-on-error: true
+- name: Terraform Plan
+  id: plan
+  run: |
+    terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -json plan.tmp > plan_output.json
+  continue-on-error: true
 ```
 
 ### FireflyCI Post-Plan
@@ -19,7 +19,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
     command: post-plan
     plan-output-file: plan_output.json
     plan-log-file: plan_log.jsonl
-    workspace: workspace_dir/
+    workspace: <WORKSPACE_DIR>
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
     FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
@@ -27,10 +27,10 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 
 ### The apply must output into a file
 ```yaml
-    - name: Terraform Apply
-      id: apply
-      run: terraform apply -auto-approve -json > ${GITHUB_WORKSPACE}/apply_log.json
-      continue-on-error: true
+- name: Terraform Apply
+  id: apply
+  run: terraform apply -auto-approve -json > apply_log.json
+  continue-on-error: true
 ```
 
 ### FireflyCI Post-Apply
@@ -40,7 +40,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
   with:
     command: post-apply
     apply-log-file: apply.json
-    workspace: workspace_dir/
+    workspace: <WORKSPACE_DIR>
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
     FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
