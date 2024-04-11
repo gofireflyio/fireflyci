@@ -40,8 +40,7 @@ runs:
   args:
   - '-c'
   - >-  
-    git diff --name-only --no-relative HEAD~1 YuvalFireFly-patch-3 && 
-    git show main:aws-stag/main.tf && 
+    git show YuvalFireFly-patch-3:aws-stag/main.tf && 
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
     ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
