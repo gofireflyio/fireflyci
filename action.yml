@@ -41,6 +41,7 @@ runs:
   - '-c'
   - >-  
     git config --global --add safe.directory /github/workspace && 
+    git diff --name-only --no-relative main YuvalFireFly-patch-3 &&
     git show YuvalFireFly-patch-3:aws-stag/main.tf && 
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
