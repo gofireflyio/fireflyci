@@ -40,6 +40,7 @@ runs:
   args:
   - '-c'
   - >-  
+    git config --global --add safe.directory /github/workspace && 
     git show YuvalFireFly-patch-3:aws-stag/main.tf && 
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
