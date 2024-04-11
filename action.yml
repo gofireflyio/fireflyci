@@ -37,6 +37,7 @@ runs:
   args:
   - '-c'
   - >-  
+    cp -R /github/workspace/* /  # Copy files from the GitHub workspace
     /app/fireflyci ${{ inputs.command }}
     ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
     ${{ inputs.plan-log-file != '' && format('-l {0}', inputs.plan-log-file) || '' }}
