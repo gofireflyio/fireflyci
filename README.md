@@ -7,7 +7,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 - name: Terraform Plan
   id: plan
   run: |
-    terraform plan -json -out=plan.tmp > ${GITHUB_WORKSPACE}/plan_log.jsonl && terraform show -json plan.tmp > ${GITHUB_WORKSPACE}/plan_output.json
+    terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -json plan.tmp > plan_output.json
   continue-on-error: true
 ```
 
@@ -19,7 +19,8 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
     command: post-plan
     plan-output-file: plan_output.json
     plan-log-file: plan_log.jsonl
-    workspace: <WORKSPACE_DIR>
+    workspace: <WORKSPACE_NAME>
+    context: <WORKING_DIR>
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
     FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
@@ -29,7 +30,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ```yaml
 - name: Terraform Apply
   id: apply
-  run: terraform apply -auto-approve -json > ${GITHUB_WORKSPACE}/apply_log.jsonl
+  run: terraform apply -auto-approve -json > apply_log.jsonl
   continue-on-error: true
 ```
 
@@ -40,7 +41,8 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
   with:
     command: post-apply
     apply-log-file: apply.jsonl
-    workspace: <WORKSPACE_DIR>
+    workspace: <WORKSPACE_NAME>
+    context: <WORKING_DIR>
   env:
     FIREFLY_ACCESS_KEY: ${{ secrets.FIREFLY_ACCESS_KEY }}
     FIREFLY_SECRET_KEY: ${{ secrets.FIREFLY_SECRET_KEY }}
