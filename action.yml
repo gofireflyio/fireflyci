@@ -29,6 +29,9 @@ inputs:
   args:
     description: 'Additional arguments for the fireflyci executed command'
     default: ''
+  context:
+    description: 'The working directory of the IaC deployment'
+    default: ''
 
 runs:
   using: 'docker'
@@ -37,6 +40,7 @@ runs:
   args:
   - '-c'
   - >-  
+    ${{ inputs.context != '' && format('cd {0}', inputs.context) || '' }} && 
     /app/fireflyci ${{ inputs.command }}
     ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
     ${{ inputs.plan-log-file != '' && format('-l {0}', inputs.plan-log-file) || '' }}
