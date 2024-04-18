@@ -18,6 +18,10 @@ inputs:
     description: 'Path to the plan log file'
     required: false
     default: ''
+  plan-out-raw-file:
+    description: 'Path to the raw plan output file'
+    required: false
+    default: ''
   apply-log-file:
     description: 'Path to the apply log file'
     required: false
@@ -44,6 +48,7 @@ runs:
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
     ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
+    ${{ inputs.plan-out-raw-file != '' && format('-f {0}', inputs.plan-out-raw-file) || '' }}
     ${{ inputs.plan-log-file != '' && format('-l {0}', inputs.plan-log-file) || '' }}
     ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }}
     ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
