@@ -7,18 +7,19 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 - name: Terraform Plan
   id: plan
   run: |
-    terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -json plan.tmp > plan_output.json
+    terraform plan -json -out=plan.tmp > plan_log.jsonl && terraform show -json plan.tmp > plan_output.json && terraform show plan.tmp > plan_out_raw.log
   continue-on-error: true
 ```
 
 ### FireflyCI Post-Plan
 ```yaml
 - name: FireflyCI Post-Plan
-  uses: gofireflyio/fireflyci@v0.2.15
+  uses: gofireflyio/fireflyci@v0.3.3
   with:
     command: post-plan
     plan-output-file: plan_output.json
     plan-log-file: plan_log.jsonl
+    plan-out-raw-file: plan_out_raw.log
     workspace: <WORKSPACE_NAME>
     context: <WORKING_DIR>
   env:
@@ -37,7 +38,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ### FireflyCI Post-Apply
 ```yaml
 - name: FireflyCI Post-Apply
-  uses: gofireflyio/fireflyci@v0.2.15
+  uses: gofireflyio/fireflyci@v0.3.3
   with:
     command: post-apply
     apply-log-file: apply.jsonl
