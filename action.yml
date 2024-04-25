@@ -14,12 +14,16 @@ inputs:
     description: 'Path to the plan output file'
     required: false
     default: ''
-  plan-log-file:
-    description: 'Path to the plan log file'
+  init-log-file:
+    description: 'Path to the init log file'
     required: false
     default: ''
-  plan-out-raw-file:
-    description: 'Path to the raw plan output file'
+  plan-json-log-file:
+    description: 'Path to the plan JSON log file'
+    required: false
+    default: ''
+  plan-raw-log-file:
+    description: 'Path to the plan raw log file'
     required: false
     default: ''
   apply-log-file:
