@@ -50,7 +50,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
   uses: gofireflyio/fireflyci@v0.4.1
   with:
     command: post-apply
-    apply-log-file: apply.jsonl
+    apply-log-file: apply_log.jsonl
     workspace: <WORKSPACE_NAME>
     context: <WORKING_DIR>
   env:
