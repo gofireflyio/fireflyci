@@ -47,7 +47,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ### FireflyCI Post-Apply
 ```yaml
 - name: FireflyCI Post-Apply
-  uses: gofireflyio/fireflyci@v0.5.21
+  uses: gofireflyio/fireflyci@v0.5.30
   with:
     command: post-apply
     apply-log-file: apply_log.jsonl
