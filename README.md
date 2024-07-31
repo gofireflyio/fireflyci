@@ -22,7 +22,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ### FireflyCI Post-Plan
 ```yaml
 - name: FireflyCI Post-Plan
-  uses: gofireflyio/fireflyci@v0.5.34
+  uses: gofireflyio/fireflyci@v0.5.47
   with:
     command: post-plan
     init-log-file: init.log
@@ -47,7 +47,7 @@ FireflyCI is a command line interface for the FireflyCI Firefly actions
 ### FireflyCI Post-Apply
 ```yaml
 - name: FireflyCI Post-Apply
-  uses: gofireflyio/fireflyci@v0.5.34
+  uses: gofireflyio/fireflyci@v0.5.47
   with:
     command: post-apply
     apply-log-file: apply_log.jsonl
