@@ -47,7 +47,7 @@ runs:
   entrypoint: '/bin/sh'
   args:
   - '-c'
-  - >-  
+  - >-
     git config --global --add safe.directory /github/workspace && 
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
