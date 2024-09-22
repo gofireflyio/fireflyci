@@ -48,8 +48,8 @@ runs:
   args:
     - '-c'
     - |
-      git config --global --add safe.directory /github/workspace &&
-      ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
+      git config --global --add safe.directory /github/workspace
+      ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }} \
       /app/fireflyci ${{ inputs.command }} \
       ${{ inputs.init-log-file != '' && format('-i {0}', inputs.init-log-file) || '' }} \
       ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }} \
@@ -57,7 +57,7 @@ runs:
       ${{ inputs.plan-json-log-file != '' && format('-l {0}', inputs.plan-json-log-file) || '' }} \
       ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }} \
       ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }} \
-      ${{ inputs.args }} \
-      exit_code=$? && \
-      echo "::set-output name=exit_code::$exit_code" && \
+      ${{ inputs.args }}
+      exit_code=$?
+      echo "::set-output name=exit_code::$exit_code"
       exit $exit_code    
