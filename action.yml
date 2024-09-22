@@ -48,7 +48,7 @@ runs:
   args:
     - '-c'
     - |
-      set -e
+      set -x
       git config --global --add safe.directory /github/workspace
       ${{ inputs.context != '' && format('cd {0}', inputs.context) || ':' }}
       /app/fireflyci ${{ inputs.command }} \
@@ -59,7 +59,3 @@ runs:
         ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }} \
         ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }} \
         ${{ inputs.args }}
-      EXIT_CODE=$?
-      echo "FireflyCI exited with code $EXIT_CODE"
-      echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-      exit $EXIT_CODE
