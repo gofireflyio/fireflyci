@@ -61,6 +61,5 @@ runs:
     
     exit_code=$?
     echo $exit_code
-    echo "::set-output name=exit_code::$exit_code"
     exit $exit_code
     
