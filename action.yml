@@ -59,6 +59,7 @@ runs:
     ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
     ${{ inputs.args }}
     
+    echo $?
     exit_code=$?
     echo $exit_code
     exit $exit_code
