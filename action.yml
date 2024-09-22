@@ -46,21 +46,18 @@ runs:
   image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.56-INFL-9976.7'
   entrypoint: '/bin/sh'
   args:
-  - '-c'
-  - >-
-    git config --global --add safe.directory /github/workspace && 
-    ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
-    /app/fireflyci ${{ inputs.command }}
-    ${{ inputs.init-log-file != '' && format('-i {0}', inputs.init-log-file) || '' }}
-    ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
-    ${{ inputs.plan-raw-log-file != '' && format('--plan-output-raw-log-file {0}', inputs.plan-raw-log-file) || '' }}
-    ${{ inputs.plan-json-log-file != '' && format('-l {0}', inputs.plan-json-log-file) || '' }}
-    ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }}
-    ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
-    ${{ inputs.args }}
-    
-    echo $?
-    exit_code=$?
-    echo $exit_code
-    exit $exit_code
-    
+    - '-c'
+    - |
+      git config --global --add safe.directory /github/workspace &&
+      ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
+      /app/fireflyci ${{ inputs.command }} \
+      ${{ inputs.init-log-file != '' && format('-i {0}', inputs.init-log-file) || '' }} \
+      ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }} \
+      ${{ inputs.plan-raw-log-file != '' && format('--plan-output-raw-log-file {0}', inputs.plan-raw-log-file) || '' }} \
+      ${{ inputs.plan-json-log-file != '' && format('-l {0}', inputs.plan-json-log-file) || '' }} \
+      ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }} \
+      ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }} \
+      ${{ inputs.args }} \
+      exit_code=$? && \
+      echo "::set-output name=exit_code::$exit_code" && \
+      exit $exit_code    
