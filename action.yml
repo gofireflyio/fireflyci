@@ -43,7 +43,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.56-INFL-9976.7'
+  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.56-INFL-9976.8'
   entrypoint: '/bin/sh'
   args:
     - '-c'
@@ -60,4 +60,4 @@ runs:
       ${{ inputs.args }}
       exit_code=$?
       echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-      exit $exit_code    
+      exit $exit_code
