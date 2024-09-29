@@ -43,7 +43,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.58-INFL-11279.1'
+  image: 'docker://public.ecr.aws/firefly/fireflyci:0.5.60-INFL-11369.0'
   entrypoint: '/bin/sh'
   args:
     - '-c'
