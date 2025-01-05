@@ -43,7 +43,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.97'
+  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.99'
   entrypoint: '/bin/sh'
   args:
   - '-c'
@@ -52,7 +52,7 @@ runs:
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
     ${{ inputs.init-log-file != '' && format('-i {0}', inputs.init-log-file) || '' }}
-    ${{ inputs.context != '' && format('--context {0}', inputs.context) || '' }}
+    ${{ inputs.context != '' && format('--work-dir {0}', inputs.context) || '' }}
     ${{ inputs.plan-output-file != '' && format('-f {0}', inputs.plan-output-file) || '' }}
     ${{ inputs.plan-raw-log-file != '' && format('--plan-output-raw-log-file {0}', inputs.plan-raw-log-file) || '' }}
     ${{ inputs.plan-json-log-file != '' && format('-l {0}', inputs.plan-json-log-file) || '' }}
