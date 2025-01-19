@@ -43,7 +43,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://public.ecr.aws/firefly/fireflyci-pre-release:v0.5.102-INFL-12677-ia-c-ci-cli-arm-build-of-agent-docker-image.0'
+  image: 'docker://public.ecr.aws/firefly/fireflyci-pre-release:v0.5.102-INFL-12677-ia-c-ci-cli-arm-build-of-agent-docker-image.5'
   entrypoint: '/bin/sh'
   args:
   - '-c'
