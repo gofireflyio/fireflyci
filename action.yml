@@ -1,4 +1,4 @@
-name: "FireflyCI"
+name: 'FireflyCI'
 
 description: 'GitHub action for the command-line interface of the FireflyCI Firefly actions'
 
