@@ -1,53 +1,53 @@
 name: "FireflyCI"
 
-description: "GitHub action for the command-line interface of the FireflyCI Firefly actions"
+description: 'GitHub action for the command-line interface of the FireflyCI Firefly actions'
 
 inputs:
   version:
-    description: "FireflyCI Version"
+    description: 'FireflyCI Version'
     required: false
-    default: "latest"
+    default: 'latest'
   command:
-    description: "FireflyCI command to execute [post-apply, post-plan]"
+    description: 'FireflyCI command to execute [post-apply, post-plan]'
     required: true
   plan-output-file:
     description: "Path to the plan output file"
     required: false
-    default: ""
+    default: ''
   init-log-file:
     description: "Path to the init log file"
     required: false
-    default: ""
+    default: ''
   plan-json-log-file:
     description: "Path to the plan JSON log file"
     required: false
-    default: ""
+    default: ''
   plan-raw-log-file:
     description: "Path to the plan raw log file"
     required: false
-    default: ""
+    default: ''
   apply-log-file:
     description: "Path to the apply log file"
     required: false
-    default: ""
+    default: ''
   workspace:
     description: "Workspace identifier"
     required: true
-    default: ""
+    default: ''
   args:
     description: "Additional arguments for the fireflyci executed command"
-    default: ""
+    default: ''
   context:
     description: "The working directory of the IaC deployment"
-    default: ""
+    default: ''
 
 runs:
-  using: "docker"
-  image: "docker://public.ecr.aws/firefly/fireflyci:v0.5.124-INFL-14188-agent-workaround"
-  entrypoint: "/bin/sh"
+  using: 'docker'
+  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.124-INFL-14188-agent-workaround'
+  entrypoint: '/bin/sh'
 args:
-  - "-c"
-  - >-
+  - '-c'
+  - |
     git config --global --add safe.directory /github/workspace && 
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
