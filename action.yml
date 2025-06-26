@@ -43,7 +43,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.101'
+  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.124-INFL-14188-agent-workaround'
   entrypoint: '/bin/sh'
   args:
   - '-c'
