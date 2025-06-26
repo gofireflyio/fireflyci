@@ -6,7 +6,7 @@ inputs:
   version:
     description: 'FireflyCI Version'
     required: false
-    default: 'latest'
+    default: "latest"
   command:
     description: 'FireflyCI command to execute [post-apply, post-plan]'
     required: true
@@ -45,9 +45,9 @@ runs:
   using: 'docker'
   image: 'docker://public.ecr.aws/firefly/fireflyci:v0.5.124-INFL-14188-agent-workaround'
   entrypoint: '/bin/sh'
-args:
+  args:
   - '-c'
-  - |
+  - >-  
     git config --global --add safe.directory /github/workspace && 
     ${{ inputs.context != '' && format('cd {0} && ', inputs.context) || '' }}
     /app/fireflyci ${{ inputs.command }}
@@ -58,7 +58,4 @@ args:
     ${{ inputs.plan-json-log-file != '' && format('-l {0}', inputs.plan-json-log-file) || '' }}
     ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }}
     ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
-    ${{ inputs.use-ci-server == 'true' && '--use-ci-server' || '' }}
-    ${{ inputs.ci-server-url != '' && format('--ci-server-url {0}', inputs.ci-server-url) || '' }}
-    ${{ inputs.account-id != '' && format('--account-id {0}', inputs.account-id) || '' }}
     ${{ inputs.args }}
