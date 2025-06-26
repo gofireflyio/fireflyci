@@ -11,34 +11,34 @@ inputs:
     description: 'FireflyCI command to execute [post-apply, post-plan]'
     required: true
   plan-output-file:
-    description: "Path to the plan output file"
+    description: 'Path to the plan output file'
     required: false
     default: ''
   init-log-file:
-    description: "Path to the init log file"
+    description: 'Path to the init log file'
     required: false
     default: ''
   plan-json-log-file:
-    description: "Path to the plan JSON log file"
+    description: 'Path to the plan JSON log file'
     required: false
     default: ''
   plan-raw-log-file:
-    description: "Path to the plan raw log file"
+    description: 'Path to the plan raw log file'
     required: false
     default: ''
   apply-log-file:
-    description: "Path to the apply log file"
+    description: 'Path to the apply log file'
     required: false
     default: ''
   workspace:
-    description: "Workspace identifier"
+    description: 'Workspace identifier'
     required: true
     default: ''
   args:
-    description: "Additional arguments for the fireflyci executed command"
+    description: 'Additional arguments for the fireflyci executed command'
     default: ''
   context:
-    description: "The working directory of the IaC deployment"
+    description: 'The working directory of the IaC deployment'
     default: ''
 
 runs:
