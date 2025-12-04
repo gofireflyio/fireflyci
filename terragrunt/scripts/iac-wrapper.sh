@@ -10,8 +10,18 @@ set -e
 BINARY_NAME="${IAC_BINARY:-terraform}"  # Default to terraform if not set
 
 # Path to the actual IaC binary
-# Use which to find the actual binary, or fall back to common locations
-if [ -x "/bin/${BINARY_NAME}" ]; then
+# First check if IAC_BINARY_PATH is set (used when wrapper is installed)
+if [ -n "$IAC_BINARY_PATH" ] && [ -x "$IAC_BINARY_PATH" ]; then
+  IAC_BIN="$IAC_BINARY_PATH"
+# Otherwise try to find the .real version (in case wrapper was installed)
+elif [ -x "/bin/${BINARY_NAME}.real" ]; then
+  IAC_BIN="/bin/${BINARY_NAME}.real"
+elif [ -x "/usr/bin/${BINARY_NAME}.real" ]; then
+  IAC_BIN="/usr/bin/${BINARY_NAME}.real"
+elif [ -x "/usr/local/bin/${BINARY_NAME}.real" ]; then
+  IAC_BIN="/usr/local/bin/${BINARY_NAME}.real"
+# Fall back to finding the regular binary
+elif [ -x "/bin/${BINARY_NAME}" ]; then
   IAC_BIN="/bin/${BINARY_NAME}"
 elif [ -x "/usr/bin/${BINARY_NAME}" ]; then
   IAC_BIN="/usr/bin/${BINARY_NAME}"

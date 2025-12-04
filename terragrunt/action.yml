@@ -43,13 +43,15 @@ runs:
         
         if [ -z "$REAL_TERRAFORM" ]; then
           echo "::warning::Terraform binary not found in PATH. Wrapper will be installed but may not work until terraform is installed."
+          REAL_TERRAFORM_PATH=""
         else
           echo "Found terraform at: $REAL_TERRAFORM"
           
           # Move real terraform to a backup location
           REAL_DIR=$(dirname "$REAL_TERRAFORM")
           sudo mv "$REAL_TERRAFORM" "$REAL_DIR/terraform.real"
-          echo "Moved real terraform to: $REAL_DIR/terraform.real"
+          REAL_TERRAFORM_PATH="$REAL_DIR/terraform.real"
+          echo "Moved real terraform to: $REAL_TERRAFORM_PATH"
         fi
         
         # Create a terraform wrapper script that calls our IaC wrapper with absolute path
@@ -57,6 +59,7 @@ runs:
         #!/bin/sh
         # Terraform wrapper that uses the IaC wrapper script
         export IAC_BINARY="terraform"
+        export IAC_BINARY_PATH="$REAL_TERRAFORM_PATH"
         exec "$WRAPPER_SCRIPT" "\$@"
         EOF
         
@@ -82,13 +85,15 @@ runs:
         
         if [ -z "$REAL_TOFU" ]; then
           echo "::warning::Tofu binary not found in PATH. Wrapper will be installed but may not work until tofu is installed."
+          REAL_TOFU_PATH=""
         else
           echo "Found tofu at: $REAL_TOFU"
           
           # Move real tofu to a backup location
           REAL_DIR=$(dirname "$REAL_TOFU")
           sudo mv "$REAL_TOFU" "$REAL_DIR/tofu.real"
-          echo "Moved real tofu to: $REAL_DIR/tofu.real"
+          REAL_TOFU_PATH="$REAL_DIR/tofu.real"
+          echo "Moved real tofu to: $REAL_TOFU_PATH"
         fi
         
         # Create a tofu wrapper script that calls our IaC wrapper with absolute path
@@ -96,6 +101,7 @@ runs:
         #!/bin/sh
         # Tofu wrapper that uses the IaC wrapper script
         export IAC_BINARY="tofu"
+        export IAC_BINARY_PATH="$REAL_TOFU_PATH"
         exec "$WRAPPER_SCRIPT" "\$@"
         EOF
         
