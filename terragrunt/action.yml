@@ -1,0 +1,148 @@
+name: 'Terragrunt IaC Wrapper'
+
+description: 'Installs a wrapper script to intercept and log terraform/tofu commands when invoked by Terragrunt'
+
+inputs:
+  iac-binary:
+    description: 'Which IaC binary to wrap: terraform, tofu, or both'
+    required: false
+    default: 'terraform'
+  wrapper-dir:
+    description: 'Directory to install the wrapper script (will be added to PATH)'
+    required: false
+    default: '/usr/local/bin/iac-wrapper'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup wrapper directory
+      shell: bash
+      run: |
+        echo "Setting up IaC wrapper for ${{ inputs.iac-binary }}"
+        
+        # Create wrapper directory if it doesn't exist
+        WRAPPER_DIR="${{ inputs.wrapper-dir }}"
+        mkdir -p "$WRAPPER_DIR"
+        
+        # Copy the wrapper script to the wrapper directory
+        SCRIPT_DIR="${{ github.action_path }}/scripts"
+        cp "$SCRIPT_DIR/iac-wrapper.sh" "$WRAPPER_DIR/iac-wrapper.sh"
+        chmod +x "$WRAPPER_DIR/iac-wrapper.sh"
+        
+        echo "Wrapper script installed at: $WRAPPER_DIR/iac-wrapper.sh"
+    
+    - name: Setup Terraform wrapper
+      if: inputs.iac-binary == 'terraform' || inputs.iac-binary == 'both'
+      shell: bash
+      run: |
+        WRAPPER_DIR="${{ inputs.wrapper-dir }}"
+        WRAPPER_SCRIPT="$WRAPPER_DIR/iac-wrapper.sh"
+        
+        # Find the real terraform binary
+        REAL_TERRAFORM=$(which terraform 2>/dev/null || echo "")
+        
+        if [ -z "$REAL_TERRAFORM" ]; then
+          echo "::warning::Terraform binary not found in PATH. Wrapper will be installed but may not work until terraform is installed."
+          REAL_TERRAFORM_PATH=""
+        else
+          echo "Found terraform at: $REAL_TERRAFORM"
+          
+          # Move real terraform to a backup location
+          REAL_DIR=$(dirname "$REAL_TERRAFORM")
+          sudo mv "$REAL_TERRAFORM" "$REAL_DIR/terraform.real"
+          REAL_TERRAFORM_PATH="$REAL_DIR/terraform.real"
+          echo "Moved real terraform to: $REAL_TERRAFORM_PATH"
+        fi
+        
+        # Create a terraform wrapper script that calls our IaC wrapper with absolute path
+        cat > "$WRAPPER_DIR/terraform" << EOF
+        #!/bin/sh
+        # Terraform wrapper that uses the IaC wrapper script
+        export IAC_BINARY="terraform"
+        export IAC_BINARY_PATH="$REAL_TERRAFORM_PATH"
+        exec "$WRAPPER_SCRIPT" "\$@"
+        EOF
+        
+        chmod +x "$WRAPPER_DIR/terraform"
+        
+        # Create symlink in the original location if terraform was found
+        if [ -n "$REAL_TERRAFORM" ]; then
+          sudo ln -sf "$WRAPPER_DIR/terraform" "$REAL_TERRAFORM"
+          echo "Created wrapper symlink at: $REAL_TERRAFORM"
+        fi
+        
+        echo "Terraform wrapper installed"
+    
+    - name: Setup Tofu wrapper
+      if: inputs.iac-binary == 'tofu' || inputs.iac-binary == 'both'
+      shell: bash
+      run: |
+        WRAPPER_DIR="${{ inputs.wrapper-dir }}"
+        WRAPPER_SCRIPT="$WRAPPER_DIR/iac-wrapper.sh"
+        
+        # Find the real tofu binary
+        REAL_TOFU=$(which tofu 2>/dev/null || echo "")
+        
+        if [ -z "$REAL_TOFU" ]; then
+          echo "::warning::Tofu binary not found in PATH. Wrapper will be installed but may not work until tofu is installed."
+          REAL_TOFU_PATH=""
+        else
+          echo "Found tofu at: $REAL_TOFU"
+          
+          # Move real tofu to a backup location
+          REAL_DIR=$(dirname "$REAL_TOFU")
+          sudo mv "$REAL_TOFU" "$REAL_DIR/tofu.real"
+          REAL_TOFU_PATH="$REAL_DIR/tofu.real"
+          echo "Moved real tofu to: $REAL_TOFU_PATH"
+        fi
+        
+        # Create a tofu wrapper script that calls our IaC wrapper with absolute path
+        cat > "$WRAPPER_DIR/tofu" << EOF
+        #!/bin/sh
+        # Tofu wrapper that uses the IaC wrapper script
+        export IAC_BINARY="tofu"
+        export IAC_BINARY_PATH="$REAL_TOFU_PATH"
+        exec "$WRAPPER_SCRIPT" "\$@"
+        EOF
+        
+        chmod +x "$WRAPPER_DIR/tofu"
+        
+        # Create symlink in the original location if tofu was found
+        if [ -n "$REAL_TOFU" ]; then
+          sudo ln -sf "$WRAPPER_DIR/tofu" "$REAL_TOFU"
+          echo "Created wrapper symlink at: $REAL_TOFU"
+        fi
+        
+        echo "Tofu wrapper installed"
+    
+    - name: Verify installation
+      shell: bash
+      run: |
+        echo "Verifying wrapper installation..."
+        
+        if [ "${{ inputs.iac-binary }}" = "terraform" ] || [ "${{ inputs.iac-binary }}" = "both" ]; then
+          if command -v terraform >/dev/null 2>&1; then
+            echo "✓ Terraform wrapper is accessible"
+            echo "  Location: $(which terraform)"
+          else
+            echo "::warning::Terraform wrapper not found in PATH"
+          fi
+        fi
+        
+        if [ "${{ inputs.iac-binary }}" = "tofu" ] || [ "${{ inputs.iac-binary }}" = "both" ]; then
+          if command -v tofu >/dev/null 2>&1; then
+            echo "✓ Tofu wrapper is accessible"
+            echo "  Location: $(which tofu)"
+          else
+            echo "::warning::Tofu wrapper not found in PATH"
+          fi
+        fi
+        
+        echo ""
+        echo "Wrapper installation complete!"
+        echo "Terragrunt will now use the wrapper script to capture logs for plan, apply, destroy, and init commands."
+
+branding:
+  icon: 'box'
+  color: 'blue'
+
