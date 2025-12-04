@@ -66,6 +66,6 @@ runs:
     ${{ inputs.plan-json-log-file != '' && format('-l {0}', inputs.plan-json-log-file) || '' }}
     ${{ inputs.apply-log-file != '' && format('-f {0}', inputs.apply-log-file) || '' }}
     ${{ inputs.workspace != '' && format('-w {0}', inputs.workspace) || '' }}
-    ${{ inputs.environment != '' && format('-e {0}', inputs.environment) || '' }}
+    ${{ inputs.environment != '' && format('--environment {0}', inputs.environment) || '' }}
     ${{ inputs.terragrunt-version != '' && format('--terragrunt-version {0}', inputs.terragrunt-version) || '' }}
     ${{ inputs.args }}
