@@ -36,6 +36,7 @@ runs:
       shell: bash
       run: |
         WRAPPER_DIR="${{ inputs.wrapper-dir }}"
+        WRAPPER_SCRIPT="$WRAPPER_DIR/iac-wrapper.sh"
         
         # Find the real terraform binary
         REAL_TERRAFORM=$(which terraform 2>/dev/null || echo "")
@@ -51,13 +52,12 @@ runs:
           echo "Moved real terraform to: $REAL_DIR/terraform.real"
         fi
         
-        # Create a terraform wrapper script that calls our IaC wrapper
-        cat > "$WRAPPER_DIR/terraform" << 'EOF'
+        # Create a terraform wrapper script that calls our IaC wrapper with absolute path
+        cat > "$WRAPPER_DIR/terraform" << EOF
         #!/bin/sh
         # Terraform wrapper that uses the IaC wrapper script
         export IAC_BINARY="terraform"
-        SCRIPT_DIR=$(dirname "$0")
-        exec "$SCRIPT_DIR/iac-wrapper.sh" "$@"
+        exec "$WRAPPER_SCRIPT" "\$@"
         EOF
         
         chmod +x "$WRAPPER_DIR/terraform"
@@ -75,6 +75,7 @@ runs:
       shell: bash
       run: |
         WRAPPER_DIR="${{ inputs.wrapper-dir }}"
+        WRAPPER_SCRIPT="$WRAPPER_DIR/iac-wrapper.sh"
         
         # Find the real tofu binary
         REAL_TOFU=$(which tofu 2>/dev/null || echo "")
@@ -90,13 +91,12 @@ runs:
           echo "Moved real tofu to: $REAL_DIR/tofu.real"
         fi
         
-        # Create a tofu wrapper script that calls our IaC wrapper
-        cat > "$WRAPPER_DIR/tofu" << 'EOF'
+        # Create a tofu wrapper script that calls our IaC wrapper with absolute path
+        cat > "$WRAPPER_DIR/tofu" << EOF
         #!/bin/sh
         # Tofu wrapper that uses the IaC wrapper script
         export IAC_BINARY="tofu"
-        SCRIPT_DIR=$(dirname "$0")
-        exec "$SCRIPT_DIR/iac-wrapper.sh" "$@"
+        exec "$WRAPPER_SCRIPT" "\$@"
         EOF
         
         chmod +x "$WRAPPER_DIR/tofu"
