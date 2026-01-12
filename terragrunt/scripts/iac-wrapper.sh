@@ -6,6 +6,11 @@
 
 set -e
 
+# Forward termination signals to child processes so terraform can release state locks
+trap 'trap - TERM; kill -TERM -$$ 2>/dev/null || kill 0' TERM
+trap 'trap - INT; kill -INT -$$ 2>/dev/null || kill 0' INT
+trap 'trap - HUP; kill -HUP -$$ 2>/dev/null || kill 0' HUP
+
 # Determine which binary to use from environment variable
 BINARY_NAME="${IAC_BINARY:-terraform}"  # Default to terraform if not set
 
