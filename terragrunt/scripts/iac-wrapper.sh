@@ -3,6 +3,12 @@
 # This script intercepts terraform/tofu commands and ensures proper log capture per subfolder
 # The IAC_BINARY environment variable determines which binary to use (terraform or tofu)
 # POSIX-compliant for use in minimal containers
+#
+# SIGNAL HANDLING NOTE:
+# GitHub Actions sends SIGINT, then SIGTERM after 7.5s, then SIGKILL after 10s total.
+# Terragrunt has a 15-second SignalForwardingDelay before forwarding signals to children.
+# This means terraform never receives forwarded signals before SIGKILL!
+# Our wrapper traps signals and forwards them IMMEDIATELY to terraform.
 
 set -e
 
