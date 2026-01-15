@@ -99,28 +99,36 @@ trap 'debug_log "EXIT trap triggered, exit code: $?"; rm -f "$TF_PID_FILE"' EXIT
 
 debug_log "Signal traps configured for: TERM INT HUP QUIT USR1 USR2 PIPE ALRM ABRT EXIT"
 
-# Check if setsid is available (to isolate terraform from our process group)
-# This allows signals to go to our wrapper first, not directly to terraform
-HAVE_SETSID=""
+# Check if setsid with -w (wait) flag is available
+# The -w flag makes setsid wait for the child to exit, which is critical
+# Without -w, setsid exits immediately and we lose track of terraform
+HAVE_SETSID_WAIT=""
 if command -v setsid >/dev/null 2>&1; then
-  HAVE_SETSID="yes"
-  debug_log "setsid is available - will use it to isolate terraform process"
+  # Test if -w flag is supported (Linux setsid supports it, BSD may not)
+  if setsid -w true >/dev/null 2>&1; then
+    HAVE_SETSID_WAIT="yes"
+    debug_log "setsid -w is available - will use it to isolate terraform process"
+  else
+    debug_log "setsid available but -w flag not supported - will NOT use setsid"
+  fi
 else
   debug_log "setsid NOT available - signals may go directly to terraform"
 fi
 
 # Helper function to run terraform with proper signal propagation
-# Uses setsid (if available) to put terraform in a new session so signals
+# Uses setsid -w (if available) to put terraform in a new session so signals
 # sent to our process group come to our wrapper, not terraform directly
+# IMPORTANT: Must use -w flag so setsid waits for the child process!
 run_terraform_bg() {
-  if [ -n "$HAVE_SETSID" ]; then
-    setsid "$@" &
+  if [ -n "$HAVE_SETSID_WAIT" ]; then
+    # setsid -w runs the command in a new session AND waits for it
+    setsid -w "$@" &
   else
     "$@" &
   fi
   CHILD_PID=$!
   echo "$CHILD_PID" > "$TF_PID_FILE"
-  debug_log "Started terraform with PID: $CHILD_PID (saved to $TF_PID_FILE) [setsid: ${HAVE_SETSID:-no}]"
+  debug_log "Started terraform with PID: $CHILD_PID (saved to $TF_PID_FILE) [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
   
   # Wait for it to complete
   wait $CHILD_PID 2>/dev/null
@@ -248,17 +256,16 @@ case "$COMMAND" in
       TEE_PID=$!
       
       # Run terraform with output to fifo
-      # Use setsid (if available) to isolate terraform from our process group
-      # so signals from GitHub go to our wrapper, not directly to terraform
-      if [ -n "$HAVE_SETSID" ]; then
-        # Run terraform in new session - signals won't reach it directly
-        setsid "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
+      # Use setsid -w (if available) to isolate terraform from our process group
+      # The -w flag is critical - it makes setsid wait for the child process
+      if [ -n "$HAVE_SETSID_WAIT" ]; then
+        setsid -w "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
       else
         "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
       fi
       CHILD_PID=$!
       echo "$CHILD_PID" > "$TF_PID_FILE"
-      debug_log "Terraform plan started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid: ${HAVE_SETSID:-no}]"
+      debug_log "Terraform plan started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
       debug_log "Terraform PID written to: $TF_PID_FILE"
       
       # Wait for terraform to complete
@@ -308,14 +315,14 @@ case "$COMMAND" in
     else
       # Regular plan command - run in background for signal handling
       debug_log "Starting regular plan command: $IAC_BIN $*"
-      if [ -n "$HAVE_SETSID" ]; then
-        setsid "$IAC_BIN" "$@" &
+      if [ -n "$HAVE_SETSID_WAIT" ]; then
+        setsid -w "$IAC_BIN" "$@" &
       else
         "$IAC_BIN" "$@" &
       fi
       CHILD_PID=$!
       echo "$CHILD_PID" > "$TF_PID_FILE"
-      debug_log "Terraform plan started with PID: $CHILD_PID [setsid: ${HAVE_SETSID:-no}]"
+      debug_log "Terraform plan started with PID: $CHILD_PID [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
       wait $CHILD_PID
       EXIT_CODE=$?
       debug_log "Plan completed with exit code: $EXIT_CODE"
@@ -350,15 +357,15 @@ case "$COMMAND" in
       tee "$MODULE_DIR/apply_log.jsonl" < "$FIFO" &
       TEE_PID=$!
       
-      # Run terraform using setsid to isolate from our process group
-      if [ -n "$HAVE_SETSID" ]; then
-        setsid "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
+      # Run terraform using setsid -w to isolate from our process group
+      if [ -n "$HAVE_SETSID_WAIT" ]; then
+        setsid -w "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
       else
         "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
       fi
       CHILD_PID=$!
       echo "$CHILD_PID" > "$TF_PID_FILE"
-      debug_log "Terraform apply started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid: ${HAVE_SETSID:-no}]"
+      debug_log "Terraform apply started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
       debug_log "Terraform PID written to: $TF_PID_FILE"
       
       wait $CHILD_PID 2>/dev/null
@@ -373,14 +380,14 @@ case "$COMMAND" in
     else
       # Regular apply command - run in background for signal handling
       debug_log "Starting regular apply command: $IAC_BIN $*"
-      if [ -n "$HAVE_SETSID" ]; then
-        setsid "$IAC_BIN" "$@" &
+      if [ -n "$HAVE_SETSID_WAIT" ]; then
+        setsid -w "$IAC_BIN" "$@" &
       else
         "$IAC_BIN" "$@" &
       fi
       CHILD_PID=$!
       echo "$CHILD_PID" > "$TF_PID_FILE"
-      debug_log "Terraform apply started with PID: $CHILD_PID [setsid: ${HAVE_SETSID:-no}]"
+      debug_log "Terraform apply started with PID: $CHILD_PID [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
       wait $CHILD_PID
       EXIT_CODE=$?
       debug_log "Apply completed with exit code: $EXIT_CODE"
@@ -415,15 +422,15 @@ case "$COMMAND" in
       tee "$MODULE_DIR/destroy_log.jsonl" < "$FIFO" &
       TEE_PID=$!
       
-      # Run terraform using setsid to isolate from our process group
-      if [ -n "$HAVE_SETSID" ]; then
-        setsid "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
+      # Run terraform using setsid -w to isolate from our process group
+      if [ -n "$HAVE_SETSID_WAIT" ]; then
+        setsid -w "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
       else
         "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
       fi
       CHILD_PID=$!
       echo "$CHILD_PID" > "$TF_PID_FILE"
-      debug_log "Terraform destroy started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid: ${HAVE_SETSID:-no}]"
+      debug_log "Terraform destroy started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
       debug_log "Terraform PID written to: $TF_PID_FILE"
       
       wait $CHILD_PID 2>/dev/null
@@ -438,14 +445,14 @@ case "$COMMAND" in
     else
       # Regular destroy command - run in background for signal handling
       debug_log "Starting regular destroy command: $IAC_BIN $*"
-      if [ -n "$HAVE_SETSID" ]; then
-        setsid "$IAC_BIN" "$@" &
+      if [ -n "$HAVE_SETSID_WAIT" ]; then
+        setsid -w "$IAC_BIN" "$@" &
       else
         "$IAC_BIN" "$@" &
       fi
       CHILD_PID=$!
       echo "$CHILD_PID" > "$TF_PID_FILE"
-      debug_log "Terraform destroy started with PID: $CHILD_PID [setsid: ${HAVE_SETSID:-no}]"
+      debug_log "Terraform destroy started with PID: $CHILD_PID [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
       wait $CHILD_PID
       EXIT_CODE=$?
       debug_log "Destroy completed with exit code: $EXIT_CODE"
@@ -470,15 +477,15 @@ case "$COMMAND" in
     tee "$MODULE_DIR/init_log.jsonl" < "$FIFO" &
     TEE_PID=$!
     
-    # Run terraform using setsid to isolate from our process group
-    if [ -n "$HAVE_SETSID" ]; then
-      setsid "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
+    # Run terraform using setsid -w to isolate from our process group
+    if [ -n "$HAVE_SETSID_WAIT" ]; then
+      setsid -w "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
     else
       "$IAC_BIN" "$@" > "$FIFO" 2>&1 &
     fi
     CHILD_PID=$!
     echo "$CHILD_PID" > "$TF_PID_FILE"
-    debug_log "Terraform init started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid: ${HAVE_SETSID:-no}]"
+    debug_log "Terraform init started with PID: $CHILD_PID (tee PID: $TEE_PID) [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
     debug_log "Terraform PID written to: $TF_PID_FILE"
     
     wait $CHILD_PID 2>/dev/null
@@ -496,14 +503,14 @@ case "$COMMAND" in
     # Show command with TF_CLI_ARGS= to prevent globally set CLI arguments from affecting show
     # This matches the behavior in opentofu client.go
     debug_log "Starting show command: $IAC_BIN $*"
-    if [ -n "$HAVE_SETSID" ]; then
-      TF_CLI_ARGS= setsid "$IAC_BIN" "$@" &
+    if [ -n "$HAVE_SETSID_WAIT" ]; then
+      TF_CLI_ARGS= setsid -w "$IAC_BIN" "$@" &
     else
       TF_CLI_ARGS= "$IAC_BIN" "$@" &
     fi
     CHILD_PID=$!
     echo "$CHILD_PID" > "$TF_PID_FILE"
-    debug_log "Terraform show started with PID: $CHILD_PID [setsid: ${HAVE_SETSID:-no}]"
+    debug_log "Terraform show started with PID: $CHILD_PID [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
     wait $CHILD_PID
     EXIT_CODE=$?
     debug_log "Show completed with exit code: $EXIT_CODE"
@@ -513,14 +520,14 @@ case "$COMMAND" in
   *)
     # For all other commands, run in background for signal handling
     debug_log "Starting command '$COMMAND': $IAC_BIN $*"
-    if [ -n "$HAVE_SETSID" ]; then
-      setsid "$IAC_BIN" "$@" &
+    if [ -n "$HAVE_SETSID_WAIT" ]; then
+      setsid -w "$IAC_BIN" "$@" &
     else
       "$IAC_BIN" "$@" &
     fi
     CHILD_PID=$!
     echo "$CHILD_PID" > "$TF_PID_FILE"
-    debug_log "Terraform $COMMAND started with PID: $CHILD_PID [setsid: ${HAVE_SETSID:-no}]"
+    debug_log "Terraform $COMMAND started with PID: $CHILD_PID [setsid -w: ${HAVE_SETSID_WAIT:-no}]"
     wait $CHILD_PID
     EXIT_CODE=$?
     debug_log "Command '$COMMAND' completed with exit code: $EXIT_CODE"
