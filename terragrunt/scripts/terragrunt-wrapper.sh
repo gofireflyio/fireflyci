@@ -46,29 +46,36 @@ handle_signal() {
   if [ -n "$TG_PID" ] && kill -0 "$TG_PID" 2>/dev/null; then
     log_msg "Forwarding $SIGNAL_NAME to terragrunt PID $TG_PID IMMEDIATELY"
     
-    # Forward signal to terragrunt
+    # CRITICAL: Also send signal directly to all terraform processes
+    # This bypasses Terragrunt's 15-second SignalForwardingDelay!
+    log_msg "Finding and signaling terraform processes directly (bypassing terragrunt delay)..."
+    TF_PIDS=$(pgrep -f 'terraform.real|tofu.real' 2>/dev/null || true)
+    if [ -n "$TF_PIDS" ]; then
+      for TF_PID in $TF_PIDS; do
+        log_msg "Sending $SIGNAL_NAME directly to terraform PID $TF_PID"
+        kill -"$SIGNAL_NAME" "$TF_PID" 2>/dev/null || log_msg "Failed to signal terraform $TF_PID"
+      done
+    else
+      log_msg "No terraform processes found to signal directly"
+    fi
+    
+    # Also forward signal to terragrunt (for cleanup)
     kill -"$SIGNAL_NAME" "$TG_PID" 2>/dev/null || log_msg "Failed to send $SIGNAL_NAME to $TG_PID"
     
-    # Also try to forward to terragrunt's process group
-    kill -"$SIGNAL_NAME" -"$TG_PID" 2>/dev/null || true
-    
-    # Wait for terragrunt to handle the signal (give it time to forward to terraform)
-    log_msg "Waiting for terragrunt to handle signal and forward to terraform..."
+    # Wait for processes to terminate gracefully
+    log_msg "Waiting for terraform/terragrunt to release locks and terminate..."
     WAIT_COUNT=0
-    while [ $WAIT_COUNT -lt 8 ] && kill -0 "$TG_PID" 2>/dev/null; do
+    while [ $WAIT_COUNT -lt 6 ] && kill -0 "$TG_PID" 2>/dev/null; do
       sleep 1
       WAIT_COUNT=$((WAIT_COUNT + 1))
-      log_msg "Waiting... ($WAIT_COUNT/8s)"
+      # Check remaining terraform processes
+      REMAINING=$(pgrep -f 'terraform.real|tofu.real' 2>/dev/null | wc -l || echo "0")
+      log_msg "Waiting... ($WAIT_COUNT/6s) - $REMAINING terraform processes remaining"
     done
     
     if kill -0 "$TG_PID" 2>/dev/null; then
-      log_msg "Terragrunt still running after 8s, sending TERM"
+      log_msg "Terragrunt still running after 6s, sending TERM"
       kill -TERM "$TG_PID" 2>/dev/null || true
-      sleep 1
-      if kill -0 "$TG_PID" 2>/dev/null; then
-        log_msg "Terragrunt still running, sending KILL"
-        kill -KILL "$TG_PID" 2>/dev/null || true
-      fi
     fi
   else
     log_msg "No terragrunt process to forward signal to"
