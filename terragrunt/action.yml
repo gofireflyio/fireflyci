@@ -176,13 +176,12 @@ runs:
         chmod +x "$WRAPPER_DIR/terragrunt-wrapper.sh"
         
         # Create a terragrunt wrapper that calls our signal wrapper with the real binary path
-        cat > "$WRAPPER_DIR/terragrunt" << EOF
-#!/bin/sh
-# Terragrunt signal wrapper - intercepts signals and forwards them properly
-# Real terragrunt is at: $REAL_TERRAGRUNT_PATH
-export TERRAGRUNT_REAL_PATH="$REAL_TERRAGRUNT_PATH"
-exec "$WRAPPER_DIR/terragrunt-wrapper.sh" "\$@"
-EOF
+        printf '%s\n' '#!/bin/sh' \
+          "# Terragrunt signal wrapper - intercepts signals and forwards them properly" \
+          "# Real terragrunt is at: $REAL_TERRAGRUNT_PATH" \
+          "export TERRAGRUNT_REAL_PATH=\"$REAL_TERRAGRUNT_PATH\"" \
+          "exec \"$WRAPPER_DIR/terragrunt-wrapper.sh\" \"\$@\"" \
+          > "$WRAPPER_DIR/terragrunt"
         
         chmod +x "$WRAPPER_DIR/terragrunt"
         
