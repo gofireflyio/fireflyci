@@ -11,10 +11,6 @@ inputs:
     description: 'Directory to install the wrapper script (will be added to PATH)'
     required: false
     default: '/usr/local/bin/iac-wrapper'
-  install-terragrunt-wrapper:
-    description: 'Install terragrunt wrapper for signal debugging (logs signals received)'
-    required: false
-    default: 'false'
 
 runs:
   using: 'composite'
@@ -145,54 +141,6 @@ runs:
         echo ""
         echo "Wrapper installation complete!"
         echo "Terragrunt will now use the wrapper script to capture logs for plan, apply, destroy, and init commands."
-
-    - name: Setup Terragrunt signal wrapper
-      if: inputs.install-terragrunt-wrapper == 'true'
-      shell: bash
-      run: |
-        WRAPPER_DIR="${{ inputs.wrapper-dir }}"
-        SCRIPT_DIR="${{ github.action_path }}/scripts"
-        
-        echo "Installing Terragrunt signal wrapper..."
-        
-        # Find the real terragrunt binary
-        REAL_TERRAGRUNT=$(which terragrunt 2>/dev/null || echo "")
-        
-        if [ -z "$REAL_TERRAGRUNT" ]; then
-          echo "::warning::Terragrunt binary not found in PATH. Signal wrapper will not be installed."
-          exit 0
-        fi
-        
-        echo "Found terragrunt at: $REAL_TERRAGRUNT"
-        
-        # Move real terragrunt to a backup location
-        REAL_DIR=$(dirname "$REAL_TERRAGRUNT")
-        sudo mv "$REAL_TERRAGRUNT" "$REAL_DIR/terragrunt.real"
-        REAL_TERRAGRUNT_PATH="$REAL_DIR/terragrunt.real"
-        echo "Moved real terragrunt to: $REAL_TERRAGRUNT_PATH"
-        
-        # Copy the wrapper script and configure it to use the real binary
-        cp "$SCRIPT_DIR/terragrunt-wrapper.sh" "$WRAPPER_DIR/terragrunt-wrapper.sh"
-        chmod +x "$WRAPPER_DIR/terragrunt-wrapper.sh"
-        
-        # Create a terragrunt wrapper that calls our signal wrapper with the real binary path
-        printf '%s\n' '#!/bin/sh' \
-          "# Terragrunt signal wrapper - intercepts signals and forwards them properly" \
-          "# Real terragrunt is at: $REAL_TERRAGRUNT_PATH" \
-          "export TERRAGRUNT_REAL_PATH=\"$REAL_TERRAGRUNT_PATH\"" \
-          "exec \"$WRAPPER_DIR/terragrunt-wrapper.sh\" \"\$@\"" \
-          > "$WRAPPER_DIR/terragrunt"
-        
-        chmod +x "$WRAPPER_DIR/terragrunt"
-        
-        # Create symlink in the original location
-        sudo ln -sf "$WRAPPER_DIR/terragrunt" "$REAL_TERRAGRUNT"
-        echo "Created wrapper symlink at: $REAL_TERRAGRUNT"
-        
-        echo ""
-        echo "Terragrunt signal wrapper installed!"
-        echo "All 'terragrunt' commands will now go through the signal wrapper."
-        echo "Signal debug logs will be written to: /tmp/signal_debug_*.log"
 
 branding:
   icon: 'box'
