@@ -6,10 +6,103 @@
 
 set -e
 
-# Forward termination signals to child processes so terraform can release state locks
-trap 'trap - TERM; kill -TERM -$$ 2>/dev/null || kill 0' TERM
-trap 'trap - INT; kill -INT -$$ 2>/dev/null || kill 0' INT
-trap 'trap - HUP; kill -HUP -$$ 2>/dev/null || kill 0' HUP
+# Enable Terraform/OpenTofu debug logging for signal handling investigation
+export TF_LOG="${TF_LOG:-DEBUG}"
+export TF_LOG_PATH="${TF_LOG_PATH:-/tmp/terraform_debug_$$.log}"
+
+# Store our PID and process info for debugging
+WRAPPER_PID=$$
+WRAPPER_PGID=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ' || echo "unknown")
+
+# Debug logging function
+debug_log() {
+  echo "[DEBUG $(date '+%Y-%m-%d %H:%M:%S.%N' 2>/dev/null || date '+%Y-%m-%d %H:%M:%S')] [PID:$WRAPPER_PID PGID:$WRAPPER_PGID] $*" >&2
+}
+
+# Log startup info
+debug_log "=== IAC WRAPPER STARTED ==="
+debug_log "Script PID: $WRAPPER_PID, PGID: $WRAPPER_PGID"
+debug_log "Parent PID (PPID): $PPID"
+debug_log "TF_LOG=$TF_LOG, TF_LOG_PATH=$TF_LOG_PATH"
+debug_log "Arguments: $*"
+
+# Track child process PID
+CHILD_PID=""
+
+# Signal handler function with detailed logging
+handle_signal() {
+  SIGNAL_NAME="$1"
+  SIGNAL_NUM="$2"
+  debug_log "!!! RECEIVED SIGNAL: $SIGNAL_NAME (num: $SIGNAL_NUM) !!!"
+  debug_log "Current CHILD_PID: ${CHILD_PID:-not set}"
+  
+  # Log process tree for debugging
+  debug_log "Process tree at signal receipt:"
+  ps -ef 2>/dev/null | grep -E "($$|terraform|tofu|terragrunt)" | head -20 >&2 || true
+  
+  # If we have a child process, forward the signal to it
+  if [ -n "$CHILD_PID" ] && kill -0 "$CHILD_PID" 2>/dev/null; then
+    debug_log "Forwarding $SIGNAL_NAME to child process $CHILD_PID"
+    kill -"$SIGNAL_NAME" "$CHILD_PID" 2>/dev/null || debug_log "Failed to send $SIGNAL_NAME to $CHILD_PID"
+    
+    # Give terraform time to release locks gracefully
+    debug_log "Waiting up to 30s for child $CHILD_PID to terminate gracefully..."
+    WAIT_COUNT=0
+    while [ $WAIT_COUNT -lt 30 ] && kill -0 "$CHILD_PID" 2>/dev/null; do
+      sleep 1
+      WAIT_COUNT=$((WAIT_COUNT + 1))
+      debug_log "Still waiting for child $CHILD_PID... ($WAIT_COUNT/30s)"
+    done
+    
+    if kill -0 "$CHILD_PID" 2>/dev/null; then
+      debug_log "Child $CHILD_PID still running after 30s, sending KILL"
+      kill -KILL "$CHILD_PID" 2>/dev/null || true
+    else
+      debug_log "Child $CHILD_PID terminated gracefully"
+    fi
+  else
+    debug_log "No child process to forward signal to, trying process group kill"
+    # Try to kill process group
+    kill -"$SIGNAL_NAME" -$$ 2>/dev/null || kill -"$SIGNAL_NAME" 0 2>/dev/null || true
+  fi
+  
+  debug_log "Signal handler complete for $SIGNAL_NAME, exiting with code 128+$SIGNAL_NUM"
+  exit $((128 + SIGNAL_NUM))
+}
+
+# Set up signal traps with logging
+trap 'handle_signal TERM 15' TERM
+trap 'handle_signal INT 2' INT
+trap 'handle_signal HUP 1' HUP
+trap 'handle_signal QUIT 3' QUIT
+trap 'handle_signal USR1 10' USR1
+trap 'handle_signal USR2 12' USR2
+trap 'handle_signal PIPE 13' PIPE
+trap 'handle_signal ALRM 14' ALRM
+trap 'handle_signal ABRT 6' ABRT
+
+# Also log on EXIT for debugging
+trap 'debug_log "EXIT trap triggered, exit code: $?"' EXIT
+
+debug_log "Signal traps configured for: TERM INT HUP QUIT USR1 USR2 PIPE ALRM ABRT EXIT"
+
+# Helper function to run terraform with proper signal propagation
+# This runs terraform in a way that allows signals to be forwarded
+run_terraform_bg() {
+  # Write terraform PID to a file so we can track it
+  TF_PID_FILE="/tmp/wrapper_tf_pid_$$"
+  
+  "$@" &
+  CHILD_PID=$!
+  echo "$CHILD_PID" > "$TF_PID_FILE"
+  debug_log "Started terraform with PID: $CHILD_PID (saved to $TF_PID_FILE)"
+  
+  # Wait for it to complete
+  wait $CHILD_PID 2>/dev/null
+  TF_EXIT=$?
+  rm -f "$TF_PID_FILE"
+  return $TF_EXIT
+}
 
 # Determine which binary to use from environment variable
 BINARY_NAME="${IAC_BINARY:-terraform}"  # Default to terraform if not set
@@ -120,10 +213,34 @@ case "$COMMAND" in
         MODULE_DIR="$PWD"
       fi
       
-      # Run terraform and capture output, ignoring tee errors
-      { "$IAC_BIN" "$@" 2>&1; echo $? > "$EXITCODE_FILE"; } | tee "$MODULE_DIR/plan_log.jsonl" || true
-      EXIT_CODE=$(cat "$EXITCODE_FILE")
+      debug_log "Starting plan command with JSON output capture"
+      debug_log "Command: $IAC_BIN $*"
+      
+      # Run terraform in background to allow signal handling
+      # Create a named pipe for output capture
+      FIFO="/tmp/wrapper_fifo_$$"
+      mkfifo "$FIFO" 2>/dev/null || true
+      
+      # Start tee in background reading from fifo
+      tee "$MODULE_DIR/plan_log.jsonl" < "$FIFO" &
+      TEE_PID=$!
+      
+      # Run terraform with output to fifo, capture its PID
+      (
+        "$IAC_BIN" "$@" 2>&1
+        echo $? > "$EXITCODE_FILE"
+      ) > "$FIFO" &
+      CHILD_PID=$!
+      debug_log "Terraform plan started with PID: $CHILD_PID (tee PID: $TEE_PID)"
+      
+      # Wait for terraform to complete
+      wait $CHILD_PID 2>/dev/null || true
+      wait $TEE_PID 2>/dev/null || true
+      rm -f "$FIFO"
+      
+      EXIT_CODE=$(cat "$EXITCODE_FILE" 2>/dev/null || echo "1")
       rm -f "$EXITCODE_FILE"
+      debug_log "Plan command completed with exit code: $EXIT_CODE"
       
       # If plan succeeded and created a plan file, generate additional outputs
       # The plan file is in the current working directory (.terragrunt-cache)
@@ -160,8 +277,15 @@ case "$COMMAND" in
       
       exit $EXIT_CODE
     else
-      # Regular plan command
-      "$IAC_BIN" "$@"
+      # Regular plan command - run in background for signal handling
+      debug_log "Starting regular plan command: $IAC_BIN $*"
+      "$IAC_BIN" "$@" &
+      CHILD_PID=$!
+      debug_log "Terraform plan started with PID: $CHILD_PID"
+      wait $CHILD_PID
+      EXIT_CODE=$?
+      debug_log "Plan completed with exit code: $EXIT_CODE"
+      exit $EXIT_CODE
     fi
     ;;
     
@@ -185,12 +309,41 @@ case "$COMMAND" in
         MODULE_DIR="$PWD"
       fi
       
-      { "$IAC_BIN" "$@" 2>&1; echo $? > "$EXITCODE_FILE"; } | tee "$MODULE_DIR/apply_log.jsonl" || true
-      EXIT_CODE=$(cat "$EXITCODE_FILE")
+      debug_log "Starting apply command with JSON output capture"
+      debug_log "Command: $IAC_BIN $*"
+      
+      # Run terraform in background to allow signal handling
+      FIFO="/tmp/wrapper_fifo_$$"
+      mkfifo "$FIFO" 2>/dev/null || true
+      
+      tee "$MODULE_DIR/apply_log.jsonl" < "$FIFO" &
+      TEE_PID=$!
+      
+      (
+        "$IAC_BIN" "$@" 2>&1
+        echo $? > "$EXITCODE_FILE"
+      ) > "$FIFO" &
+      CHILD_PID=$!
+      debug_log "Terraform apply started with PID: $CHILD_PID (tee PID: $TEE_PID)"
+      
+      wait $CHILD_PID 2>/dev/null || true
+      wait $TEE_PID 2>/dev/null || true
+      rm -f "$FIFO"
+      
+      EXIT_CODE=$(cat "$EXITCODE_FILE" 2>/dev/null || echo "1")
       rm -f "$EXITCODE_FILE"
+      debug_log "Apply command completed with exit code: $EXIT_CODE"
       exit $EXIT_CODE
     else
-      "$IAC_BIN" "$@"
+      # Regular apply command - run in background for signal handling
+      debug_log "Starting regular apply command: $IAC_BIN $*"
+      "$IAC_BIN" "$@" &
+      CHILD_PID=$!
+      debug_log "Terraform apply started with PID: $CHILD_PID"
+      wait $CHILD_PID
+      EXIT_CODE=$?
+      debug_log "Apply completed with exit code: $EXIT_CODE"
+      exit $EXIT_CODE
     fi
     ;;
     
@@ -214,12 +367,41 @@ case "$COMMAND" in
         MODULE_DIR="$PWD"
       fi
       
-      { "$IAC_BIN" "$@" 2>&1; echo $? > "$EXITCODE_FILE"; } | tee "$MODULE_DIR/destroy_log.jsonl" || true
-      EXIT_CODE=$(cat "$EXITCODE_FILE")
+      debug_log "Starting destroy command with JSON output capture"
+      debug_log "Command: $IAC_BIN $*"
+      
+      # Run terraform in background to allow signal handling
+      FIFO="/tmp/wrapper_fifo_$$"
+      mkfifo "$FIFO" 2>/dev/null || true
+      
+      tee "$MODULE_DIR/destroy_log.jsonl" < "$FIFO" &
+      TEE_PID=$!
+      
+      (
+        "$IAC_BIN" "$@" 2>&1
+        echo $? > "$EXITCODE_FILE"
+      ) > "$FIFO" &
+      CHILD_PID=$!
+      debug_log "Terraform destroy started with PID: $CHILD_PID (tee PID: $TEE_PID)"
+      
+      wait $CHILD_PID 2>/dev/null || true
+      wait $TEE_PID 2>/dev/null || true
+      rm -f "$FIFO"
+      
+      EXIT_CODE=$(cat "$EXITCODE_FILE" 2>/dev/null || echo "1")
       rm -f "$EXITCODE_FILE"
+      debug_log "Destroy command completed with exit code: $EXIT_CODE"
       exit $EXIT_CODE
     else
-      "$IAC_BIN" "$@"
+      # Regular destroy command - run in background for signal handling
+      debug_log "Starting regular destroy command: $IAC_BIN $*"
+      "$IAC_BIN" "$@" &
+      CHILD_PID=$!
+      debug_log "Terraform destroy started with PID: $CHILD_PID"
+      wait $CHILD_PID
+      EXIT_CODE=$?
+      debug_log "Destroy completed with exit code: $EXIT_CODE"
+      exit $EXIT_CODE
     fi
     ;;
     
@@ -233,21 +415,56 @@ case "$COMMAND" in
       MODULE_DIR="$PWD"
     fi
     
-    { "$IAC_BIN" "$@" 2>&1; echo $? > "$EXITCODE_FILE"; } | tee "$MODULE_DIR/init_log.jsonl" || true
-    EXIT_CODE=$(cat "$EXITCODE_FILE")
+    debug_log "Starting init command with output capture"
+    debug_log "Command: $IAC_BIN $*"
+    
+    # Run terraform in background to allow signal handling
+    FIFO="/tmp/wrapper_fifo_$$"
+    mkfifo "$FIFO" 2>/dev/null || true
+    
+    tee "$MODULE_DIR/init_log.jsonl" < "$FIFO" &
+    TEE_PID=$!
+    
+    (
+      "$IAC_BIN" "$@" 2>&1
+      echo $? > "$EXITCODE_FILE"
+    ) > "$FIFO" &
+    CHILD_PID=$!
+    debug_log "Terraform init started with PID: $CHILD_PID (tee PID: $TEE_PID)"
+    
+    wait $CHILD_PID 2>/dev/null || true
+    wait $TEE_PID 2>/dev/null || true
+    rm -f "$FIFO"
+    
+    EXIT_CODE=$(cat "$EXITCODE_FILE" 2>/dev/null || echo "1")
     rm -f "$EXITCODE_FILE"
+    debug_log "Init command completed with exit code: $EXIT_CODE"
     exit $EXIT_CODE
     ;;
     
   "show")
     # Show command with TF_CLI_ARGS= to prevent globally set CLI arguments from affecting show
     # This matches the behavior in opentofu client.go
-    TF_CLI_ARGS= "$IAC_BIN" "$@"
+    debug_log "Starting show command: $IAC_BIN $*"
+    TF_CLI_ARGS= "$IAC_BIN" "$@" &
+    CHILD_PID=$!
+    debug_log "Terraform show started with PID: $CHILD_PID"
+    wait $CHILD_PID
+    EXIT_CODE=$?
+    debug_log "Show completed with exit code: $EXIT_CODE"
+    exit $EXIT_CODE
     ;;
     
   *)
-    # For all other commands, just execute the IaC binary
-    "$IAC_BIN" "$@"
+    # For all other commands, run in background for signal handling
+    debug_log "Starting command '$COMMAND': $IAC_BIN $*"
+    "$IAC_BIN" "$@" &
+    CHILD_PID=$!
+    debug_log "Terraform $COMMAND started with PID: $CHILD_PID"
+    wait $CHILD_PID
+    EXIT_CODE=$?
+    debug_log "Command '$COMMAND' completed with exit code: $EXIT_CODE"
+    exit $EXIT_CODE
     ;;
 esac
 
