@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+### [0.6.3](https://github.com/gofireflyio/fireflyci/compare/v0.6.2...v0.6.3) (2026-04-08)
+
+
+### Bug Fixes
+
+* Bump firefly-ci to v0.5.171 ([2107da4](https://github.com/gofireflyio/fireflyci/commit/2107da4e5b71d575962439aa719b3cef8c2060f2))
+* Update iac-wrapper for Terragrunt support. ([565f41b](https://github.com/gofireflyio/fireflyci/commit/565f41bc98716b5572cf58f456a023fa8cfb07c8))
+
 ### [0.6.2](https://github.com/gofireflyio/fireflyci/compare/v0.6.1...v0.6.2) (2026-01-12)
 
 
