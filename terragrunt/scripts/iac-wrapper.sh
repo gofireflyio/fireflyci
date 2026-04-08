@@ -57,21 +57,33 @@ done
 # shellcheck disable=SC2086
 set -- "$COMMAND" $NEWARGS
 
-# Find the module directory (where terragrunt.hcl is located)
-# Terragrunt runs IaC from .terragrunt-cache, but we want logs in the module dir
+# Find the module directory where output files should be written.
+# Priority: TERRAGRUNT_WORKING_DIR > FIREFLY_OUTPUT_DIR > detect from PWD
 MODULE_DIR=""
 if [ -n "$TERRAGRUNT_WORKING_DIR" ]; then
   MODULE_DIR="$TERRAGRUNT_WORKING_DIR"
+elif [ -n "$FIREFLY_OUTPUT_DIR" ]; then
+  MODULE_DIR="$FIREFLY_OUTPUT_DIR"
 else
-  # Try to find the parent directory that contains terragrunt.hcl
-  CURRENT_DIR="$PWD"
-  while [ "$CURRENT_DIR" != "/" ]; do
-    if [ -f "$CURRENT_DIR/../terragrunt.hcl" ]; then
-      MODULE_DIR="$CURRENT_DIR/.."
-      break
-    fi
-    CURRENT_DIR=$(dirname "$CURRENT_DIR")
-  done
+  # Detect if running inside .terragrunt-cache
+  case "$PWD" in
+    */.terragrunt-cache/*)
+      # Walk up past .terragrunt-cache to find the module directory
+      CURRENT_DIR="$PWD"
+      while [ "$CURRENT_DIR" != "/" ]; do
+        case "$CURRENT_DIR" in
+          */.terragrunt-cache) MODULE_DIR=$(dirname "$CURRENT_DIR"); break ;;
+        esac
+        CURRENT_DIR=$(dirname "$CURRENT_DIR")
+      done
+      ;;
+    *)
+      # Not in .terragrunt-cache — running directly in the module directory
+      if [ -f "$PWD/terragrunt.hcl" ]; then
+        MODULE_DIR="$PWD"
+      fi
+      ;;
+  esac
 fi
 
 # If we couldn't find module dir, use current directory
@@ -121,36 +133,40 @@ case "$COMMAND" in
       rm -f "$EXITCODE_FILE"
       
       # If plan succeeded and created a plan file, generate additional outputs
-      # The plan file is in the current working directory (.terragrunt-cache)
+      # Disable set -e for this section — terraform show failures should not crash the wrapper
       if [ $EXIT_CODE -eq 0 ]; then
-        # Wait a moment for file system sync
+        set +e
         sleep 0.1
-        
+
+        PLAN_FILE=""
         if [ -f "$OUT_FILE" ]; then
-          # Copy plan file to module directory
-          cp "$OUT_FILE" "$MODULE_DIR/$OUT_FILE" 2>/dev/null
-          
-          # Generate plan_output.json (JSON format) - critical file
-          # Use TF_CLI_ARGS= to prevent globally set CLI arguments from affecting show
-          if TF_CLI_ARGS= "$IAC_BIN" show -json "$OUT_FILE" > "$MODULE_DIR/plan_output.json" 2>/dev/null; then
-            : # Success
-          else
-            # If show fails, try with the copied plan file
-            TF_CLI_ARGS= "$IAC_BIN" show -json "$MODULE_DIR/$OUT_FILE" > "$MODULE_DIR/plan_output.json" 2>/dev/null || \
-              echo "{\"error\": \"Failed to generate plan output\"}" > "$MODULE_DIR/plan_output.json"
+          PLAN_FILE="$OUT_FILE"
+          # Copy plan file to module directory if not already there
+          if [ "$PWD" != "$MODULE_DIR" ]; then
+            cp "$OUT_FILE" "$MODULE_DIR/$OUT_FILE" 2>/dev/null
           fi
-          
+        elif [ -f "$MODULE_DIR/$OUT_FILE" ]; then
+          PLAN_FILE="$MODULE_DIR/$OUT_FILE"
+        fi
+
+        if [ -n "$PLAN_FILE" ]; then
+          # Generate plan_output.json (JSON format)
+          TF_CLI_ARGS= "$IAC_BIN" show -json "$PLAN_FILE" > "$MODULE_DIR/plan_output.json" 2>/dev/null
+          if [ $? -ne 0 ]; then
+            echo "{\"error\": \"Failed to generate plan output\"}" > "$MODULE_DIR/plan_output.json"
+          fi
+
           # Generate plan_output_raw.log (human-readable format)
-          # Use TF_CLI_ARGS= to prevent globally set CLI arguments from affecting show
-          if ! TF_CLI_ARGS= "$IAC_BIN" show "$OUT_FILE" > "$MODULE_DIR/plan_output_raw.log" 2>/dev/null; then
-            TF_CLI_ARGS= "$IAC_BIN" show "$MODULE_DIR/$OUT_FILE" > "$MODULE_DIR/plan_output_raw.log" 2>/dev/null || \
-              echo "Failed to generate raw plan output" > "$MODULE_DIR/plan_output_raw.log"
+          TF_CLI_ARGS= "$IAC_BIN" show "$PLAN_FILE" > "$MODULE_DIR/plan_output_raw.log" 2>/dev/null
+          if [ $? -ne 0 ]; then
+            echo "Failed to generate raw plan output" > "$MODULE_DIR/plan_output_raw.log"
           fi
         else
           # Plan file not found, create placeholder files
           echo "{\"error\": \"Plan file not found\"}" > "$MODULE_DIR/plan_output.json"
           echo "Plan file $OUT_FILE not found" > "$MODULE_DIR/plan_output_raw.log"
         fi
+        set -e
       fi
       
       exit $EXIT_CODE
