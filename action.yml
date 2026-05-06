@@ -51,7 +51,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.6.1'
+  image: 'docker://public.ecr.aws/firefly/fireflyci:v0.6.3'
   entrypoint: '/bin/sh'
   args:
   - '-c'
