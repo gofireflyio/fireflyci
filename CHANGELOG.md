@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+### [0.6.20](https://github.com/gofireflyio/fireflyci/compare/v0.6.19...v0.6.20) (2026-09-03)
+
+
+### Bug Fixes
+
+* Bump firefly-ci to v0.6.21 ([#24](https://github.com/gofireflyio/fireflyci/issues/24)) ([48ebff8](https://github.com/gofireflyio/fireflyci/commit/48ebff8d05329ea0d421997795da0454812be2d6))
+* Bump firefly-ci to v0.6.23 ([#29](https://github.com/gofireflyio/fireflyci/issues/29)) ([d09e65a](https://github.com/gofireflyio/fireflyci/commit/d09e65a67d6ab85c28c091634c9fc89ff818cc99))
+* Bump firefly-ci to v0.6.26 ([#30](https://github.com/gofireflyio/fireflyci/issues/30)) ([1f8c579](https://github.com/gofireflyio/fireflyci/commit/1f8c579d925f864e3de95114d37870e431a9fe7c))
+* Bump firefly-ci to v0.6.28 ([#31](https://github.com/gofireflyio/fireflyci/issues/31)) ([5825b0e](https://github.com/gofireflyio/fireflyci/commit/5825b0e4a5f7fd31e5f7356bfed3e6f6947d7505))
+* Bump firefly-ci to v0.6.32 ([f6fda00](https://github.com/gofireflyio/fireflyci/commit/f6fda0057f6f29c2bcebb6d4a989b2fa2eb150b8))
+* Bump firefly-ci to v0.6.36 ([#33](https://github.com/gofireflyio/fireflyci/issues/33)) ([86401cc](https://github.com/gofireflyio/fireflyci/commit/86401ccebd991ac288ba456d58c67d7b5b5c38bc))
+
 ### [0.6.5](https://github.com/gofireflyio/fireflyci/compare/v0.6.4...v0.6.5) (2026-07-16)
 
 
