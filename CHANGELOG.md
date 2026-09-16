@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+### [0.6.21](https://github.com/gofireflyio/fireflyci/compare/v0.6.20...v0.6.21) (2026-09-16)
+
+
+### Bug Fixes
+
+* Bump firefly-ci to v0.6.40 ([#34](https://github.com/gofireflyio/fireflyci/issues/34)) ([a9076b1](https://github.com/gofireflyio/fireflyci/commit/a9076b1194a4f5a0ec4589022a3e0a60ca16ed3b))
+
 ### [0.6.20](https://github.com/gofireflyio/fireflyci/compare/v0.6.19...v0.6.20) (2026-09-03)
 
 
