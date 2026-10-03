@@ -8,6 +8,9 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     environment: prod
+    outputs:
+      published: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -21,7 +24,7 @@ jobs:
           node-version: 16
 
       - name: Release
-        uses: cycjimmy/semantic-release-action@v2
+        uses: cycjimmy/semantic-release-action@5982a02995853159735cb838992248c4f0f16166 # v2
         id: semantic
         with:
           semantic_version: 18.0.0
@@ -31,7 +34,29 @@ jobs:
             conventional-changelog-conventionalcommits@4.6.3
         env:
           GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
-          
+
+      # Customers can pin the floating major tag (e.g. @v0) and pick up every
+      # release. The tag ruleset only lets admins create or move tags, which is
+      # why this uses the semantic-release token rather than an app token.
+      - name: Move major version tag
+        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+          VERSION: ${{ steps.semantic.outputs.new_release_version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected release version: ${VERSION}"
+            exit 1
+          fi
+          MAJOR="v${VERSION%%.*}"
+          SHA="$(gh api "repos/${GITHUB_REPOSITORY}/commits/v${VERSION}" --jq .sha)"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${MAJOR}" > /dev/null 2>&1; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${MAJOR}" -f sha="$SHA" -F force=true > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${MAJOR}" -f sha="$SHA" > /dev/null
+          fi
+          echo "${MAJOR} -> v${VERSION} (${SHA})"
+
       - name: Get release version
         id: get_version
         run: |
@@ -54,3 +79,41 @@ jobs:
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Version | \`${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| New Release Published | ${NEW_RELEASE} |" >> $GITHUB_STEP_SUMMARY
+
+  # Hand the version to the internal workflow that bumps the downstream pins.
+  dispatch-bump:
+    name: Dispatch downstream version bump
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      # DISPATCH_REPO is the target as "owner/repo".
+      - name: Resolve dispatch target
+        id: target
+        env:
+          DISPATCH_REPO: ${{ secrets.DISPATCH_REPO }}
+        run: |
+          if [[ ! "$DISPATCH_REPO" =~ ^[^/]+/[^/]+$ ]]; then
+            echo "DISPATCH_REPO must be owner/repo"
+            exit 1
+          fi
+          echo "owner=${DISPATCH_REPO%%/*}" >> "$GITHUB_OUTPUT"
+          echo "repo=${DISPATCH_REPO#*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.DISPATCH_APP_ID }}
+          private-key: ${{ secrets.DISPATCH_PEM_FILE }}
+          owner: ${{ steps.target.outputs.owner }}
+          repositories: ${{ steps.target.outputs.repo }}
+          permission-actions: write
+
+      - name: Dispatch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DISPATCH_REPO: ${{ secrets.DISPATCH_REPO }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: gh workflow run fireflyci-release-bump.yaml -R "$DISPATCH_REPO" --ref main -f version="$VERSION"
