@@ -3,6 +3,10 @@ name: Release
 on:
   push:
     branches: [main]
+    # Release only when the shipped action changes.
+    paths:
+      - action.yml
+      - terragrunt/**
   workflow_dispatch:
 
 # Serialize releases so back-to-back merges don't race semantic-release.
