@@ -1,7 +1,14 @@
 name: Release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+# Serialize releases so back-to-back merges don't race semantic-release.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
